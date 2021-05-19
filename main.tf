@@ -21,36 +21,19 @@ resource "aws_internet_gateway" "default" {
     Name = "${var.IGW_name}"
   }
 }
-resource "aws_subnet" "subnet1-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet1_cidr
-  availability_zone = "us-east-1a"
+
+resource "aws_subnet" "subnets" {
+  # count                   = length(var.cidrs)
+  count                   = var.environment == "prod" ? 3 : 1
+  vpc_id                  = aws_vpc.default.id
+  cidr_block              = element(var.cidrs, count.index)
+  availability_zone       = element(var.azs, count.index)
+  map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.public_subnet1_name}"
+    Name = "${var.vpc_name}-Subnet-${count.index + 1}"
   }
 }
-
-resource "aws_subnet" "subnet2-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet2_cidr
-  availability_zone = "us-east-1b"
-
-  tags = {
-    Name = "${var.public_subnet2_name}"
-  }
-}
-
-resource "aws_subnet" "subnet3-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet3_cidr
-  availability_zone = "us-east-1c"
-  tags = {
-    Name = "${var.public_subnet3_name}"
-  }
-
-}
-
 
 resource "aws_route_table" "terraform-public" {
   vpc_id = aws_vpc.default.id
@@ -66,7 +49,9 @@ resource "aws_route_table" "terraform-public" {
 }
 
 resource "aws_route_table_association" "terraform-public" {
-  subnet_id      = aws_subnet.subnet1-public.id
+  # count          = length(var.cidrs)
+  count          = var.environment == "prod" ? 3 : 1
+  subnet_id      = element(aws_subnet.subnets.*.id, count.index)
   route_table_id = aws_route_table.terraform-public.id
 }
 
@@ -98,21 +83,22 @@ resource "aws_security_group" "allow_all" {
 
 
 # resource "aws_instance" "web-1" {
-#     ami = var.imagename
-#     #ami = "ami-0d857ff0f5fc4e03b"
-#     #ami = "${data.aws_ami.my_ami.id}"
-#     availability_zone = "us-east-1a"
-#     instance_type = "t2.micro"
-#     key_name = "LaptopKey"
-#     subnet_id = "${aws_subnet.subnet1-public.id}"
-#     vpc_security_group_ids = ["${aws_security_group.allow_all.id}"]
-#     associate_public_ip_address = true	
-#     tags = {
-#         Name = "Server-1"
-#         Env = "Prod"
-#         Owner = "Sree"
-# 	CostCenter = "ABCD"
-#     }
+#   count = var.environment == "prod" ? 3 : 1
+#   ami   = lookup(var.amis, "us-east-1")
+#   #ami = "ami-0d857ff0f5fc4e03b"
+#   #ami = "${data.aws_ami.my_ami.id}"
+#   # availability_zone           = "us-east-1a"
+#   instance_type               = "t2.micro"
+#   key_name                    = ""
+#   subnet_id                   = element(aws_subnet.subnets.*.id, count.index)
+#   vpc_security_group_ids      = ["${aws_security_group.allow_all.id}"]
+#   associate_public_ip_address = true
+#   tags = {
+#     Name  = "${var.vpc_name}-Server-${count.index + 1}"
+#     Env   = "${var.environment}"
+#     Owner = "${var.owner}"
+#     # CostCenter = "ABCD"
+#   }
 # }
 
 ##output "ami_id" {
