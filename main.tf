@@ -5,6 +5,15 @@ provider "aws" {
   region     = var.aws_region
 }
 
+terraform {
+  backend "s3" {
+    bucket         = "bhanuterraform"
+    key            = "production_testing/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform_state_lock_dynamo"
+  }
+}
+
 resource "aws_vpc" "default" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
