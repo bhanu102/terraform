@@ -1,5 +1,4 @@
-#https://www.terraform.io/docs/configuration-0-11/resources.html#explicit-dependencies
-
+#This is terraform code for VPC infra deployment
 provider "aws" {
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
