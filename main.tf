@@ -1,54 +1,55 @@
-#This Terraform Code Deploys Basic VPC Infra.
+#https://www.terraform.io/docs/configuration-0-11/resources.html#explicit-dependencies
+
 provider "aws" {
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
   region     = var.aws_region
 }
 
+locals {
+  env        = "Prod"
+  owner      = "Bhanu"
+  costcenter = 9000
+}
+
+
 resource "aws_vpc" "default" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   tags = {
-    Name        = "${var.vpc_name}"
-    Owner       = "${var.owner}"
-    environment = "${var.environment}"
+    Name  = "${var.vpc_name}"
+    Env   = "${local.env}"
+    Owner = "${local.owner}"
+    CC    = "${local.costcenter}"
   }
+  # depends_on = ["aws_s3_bucket.example"] #Explicit dependency
 }
 
 resource "aws_internet_gateway" "default" {
   vpc_id = aws_vpc.default.id
   tags = {
-    Name = "${var.IGW_name}"
+    Name  = "${var.IGW_name}"
+    Env   = "${local.env}"
+    Owner = "${local.owner}"
+    CC    = "${local.costcenter}"
   }
-}
-resource "aws_subnet" "subnet1-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet1_cidr
-  availability_zone = "us-east-1a"
-
-  tags = {
-    Name = "${var.public_subnet1_name}"
-  }
+  # depends_on = ["aws_s3_bucket.example"] #Explicit dependency
 }
 
-resource "aws_subnet" "subnet2-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet2_cidr
-  availability_zone = "us-east-1b"
+resource "aws_subnet" "subnets" {
+  #count = "${length(var.cidrs)}"
+  count                   = var.env != "Prod" ? 1 : 3
+  vpc_id                  = aws_vpc.default.id #Implicit dependency
+  cidr_block              = element(var.cidrs, count.index)
+  availability_zone       = element(var.azs, count.index)
+  map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.public_subnet2_name}"
+    Name  = "${var.vpc_name}-Subnet-${count.index + 1}"
+    Env   = "${local.env}"
+    Owner = "${local.owner}"
+    CC    = "${local.costcenter}"
   }
-}
-
-resource "aws_subnet" "subnet3-public" {
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = var.public_subnet3_cidr
-  availability_zone = "us-east-1c"
-  tags = {
-    Name = "${var.public_subnet3_name}"
-  }
-
 }
 
 
@@ -62,11 +63,17 @@ resource "aws_route_table" "terraform-public" {
 
   tags = {
     Name = "${var.Main_Routing_Table}"
+
   }
 }
 
 resource "aws_route_table_association" "terraform-public" {
-  subnet_id      = aws_subnet.subnet1-public.id
+  #count = "${length(var.cidrs)}"
+  count     = var.env != "Prod" ? 1 : 3
+  subnet_id = element(aws_subnet.subnets.*.id, count.index)
+  #aws_subnet.subnets.0.id
+  #aws_subnet.subnets.1.id
+  #aws_subnet.subnets.2.id
   route_table_id = aws_route_table.terraform-public.id
 }
 
@@ -90,45 +97,137 @@ resource "aws_security_group" "allow_all" {
   }
 }
 
-# data "aws_ami" "my_ami" {
-#      most_recent      = true
-#      #name_regex       = "^mavrick"
-#      owners           = ["721834156908"]
+# resource "aws_s3_bucket" "example" {
+#   bucket = "sreedevopsclassterraform200"
+#   tags = {
+#     Time = "8PM"
+#   }
+
+#   lifecycle {
+#    create_before_destroy = true
+#    ignore_changes = [
+#        tags["Time"]
+#        ]
+# }
+# }
+data "aws_ami" "my_ami" {
+  most_recent = true
+  #name_regex       = "^mavrick"
+  owners = ["454227745440"]
+}
+
+
+resource "aws_instance" "web-1" {
+  ami = data.aws_ami.my_ami.id
+  #count = 1
+  # ami                         = lookup(var.amis, "us-east-1")
+  instance_type               = "t2.micro"
+  key_name                    = "Key1"
+  subnet_id                   = aws_subnet.subnets.0.id
+  vpc_security_group_ids      = ["${aws_security_group.allow_all.id}"]
+  associate_public_ip_address = true
+  tags = {
+    Name  = "${var.vpc_name}-Server-1"
+    Env   = ""
+    Owner = ""
+  }
+}
+
+resource "null_resource" "nginxinstall" {
+
+  provisioner "remote-exec" {
+    inline = [
+      #"chmod +x /tmp/script.sh",
+      #"sudo ./tmp/script.sh",
+      "sudo yum update -y",
+      "sudo amazon-linux-extras install nginx1 -y",
+      "sudo service nginx start"
+
+    ]
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      #password = "India@123456"
+      private_key = file("Key1.pem")
+      host        = aws_instance.web-1.public_ip
+    }
+  }
+
+}
+
+resource "null_resource" "nginxfilecopy" {
+
+  provisioner "remote-exec" {
+    inline = [
+      #"chmod +x /tmp/script.sh",
+      #"sudo ./tmp/script.sh",
+      "sudo rm -rf /usr/share/nginx/html/index.html",
+      "sudo cp /tmp/index.html /usr/share/nginx/html/",
+      "sudo cp /tmp/style.css /usr/share/nginx/html/",
+      "sudo cp /tmp/scorekeeper.js /usr/share/nginx/html/",
+      "sudo service nginx start"
+
+    ]
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      #password = "India@123456"
+      private_key = file("Key1.pem")
+      host        = aws_instance.web-1.public_ip
+    }
+  }
+  depends_on = [null_resource.filecopy]
+}
+
+resource "null_resource" "filecopy" {
+
+  provisioner "file" {
+    source      = "scorekeeper.js"
+    destination = "/tmp/scorekeeper.js"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("Key1.pem")
+      host        = aws_instance.web-1.public_ip
+    }
+  }
+  provisioner "file" {
+    source      = "index.html"
+    destination = "/tmp/index.html"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("Key1.pem")
+      host        = aws_instance.web-1.public_ip
+    }
+  }
+  provisioner "file" {
+    source      = "style.css"
+    destination = "/tmp/style.css"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("Key1.pem")
+      host        = aws_instance.web-1.public_ip
+    }
+  }
+  depends_on = [null_resource.nginxinstall]
+}
+
+# resource "null_resource" "instancedetails" {
+
+#   provisioner "local-exec" {
+#     command = <<EOH
+#     echo "${aws_instance.web-1.public_ip}" >> details && echo "${aws_instance.web-1.private_ip}" >> details && echo "${aws_instance.web-1.public_dns}" >> details
+#     EOH
+#   }
+
+#   depends_on = ["aws_instance.web-1"]
 # }
 
-
-# resource "aws_instance" "web-1" {
-#     ami = var.imagename
-#     #ami = "ami-0d857ff0f5fc4e03b"
-#     #ami = "${data.aws_ami.my_ami.id}"
-#     availability_zone = "us-east-1a"
-#     instance_type = "t2.micro"
-#     key_name = "LaptopKey"
-#     subnet_id = "${aws_subnet.subnet1-public.id}"
-#     vpc_security_group_ids = ["${aws_security_group.allow_all.id}"]
-#     associate_public_ip_address = true	
-#     tags = {
-#         Name = "Server-1"
-#         Env = "Prod"
-#         Owner = "Sree"
-# 	CostCenter = "ABCD"
-#     }
-# }
-
-##output "ami_id" {
+#output "ami_id" {
 #  value = "${data.aws_ami.my_ami.id}"
 #}
-#!/bin/bash
-# echo "Listing the files in the repo."
-# ls -al
-# echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++"
-# echo "Running Packer Now...!!"
-# packer build -var=aws_access_key=AAAAAAAAAAAAAAAAAA -var=aws_secret_key=BBBBBBBBBBBBB packer.json
-#packer validate --var-file creds.json packer.json
-#packer build --var-file creds.json packer.json
-#packer.exe build --var-file creds.json -var=aws_access_key=AAAAAAAAAAAAAAAAAA -var=aws_secret_key=BBBBBBBBBBBBB packer.json
-# echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++"
-# echo "Running Terraform Now...!!"
-# terraform init
-# terraform apply --var-file terraform.tfvars -var="aws_access_key=AAAAAAAAAAAAAAAAAA" -var="aws_secret_key=BBBBBBBBBBBBB" --auto-approve
-#https://discuss.devopscube.com/t/how-to-get-the-ami-id-after-a-packer-build/36
