@@ -2,8 +2,8 @@
 echo "Listing the files in the repo."
 ls -al
 echo "+++++++++++++++++++++++++++++++++++++++++"
-packer build -var 'aws_access_key=AKIAWTQQVLKQJ4INLAMW' -var 'aws_secret_key=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' --auto-approve
+packer build -var 'aws_access_key=AKIAWTQQVLKQJ4INLAMW' -var 'aws_secret_key=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' packer.json
 echo "+++++++++++++++++++++++++++++++++++++++++"
 terraform init
-terraform apply --var-file test.tfvars -var 'aws_access_key=AKIAWTQQVLKQJ4INLAMW' -var 'aws_secret_key=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' --auto-approve
+terraform apply --var-file terraform.tfvars -var 'aws_access_key=AKIAWTQQVLKQJ4INLAMW' -var 'aws_secret_key=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' --auto-approve
 echo "SUCCESS"
