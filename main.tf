@@ -231,3 +231,4 @@ resource "null_resource" "filecopy" {
 #output "ami_id" {
 #  value = "${data.aws_ami.my_ami.id}"
 #}
+
