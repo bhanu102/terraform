@@ -133,89 +133,89 @@ resource "aws_instance" "web-1" {
   }
 }
 
-resource "null_resource" "nginxinstall" {
+# resource "null_resource" "nginxinstall" {
 
-  provisioner "remote-exec" {
-    inline = [
-      #"chmod +x /tmp/script.sh",
-      #"sudo ./tmp/script.sh",
-      "sudo yum update -y",
-      "sudo amazon-linux-extras install nginx1 -y",
-      "sudo service nginx start"
+#   provisioner "remote-exec" {
+#     inline = [
+#       #"chmod +x /tmp/script.sh",
+#       #"sudo ./tmp/script.sh",
+#       "sudo yum update -y",
+#       "sudo amazon-linux-extras install nginx1 -y",
+#       "sudo service nginx start"
 
-    ]
-    connection {
-      type = "ssh"
-      user = "ec2-user"
-      #password = "India@123456"
-      private_key = file("Key1.pem")
-      host        = aws_instance.web-1.public_ip
-    }
-  }
+#     ]
+#     connection {
+#       type = "ssh"
+#       user = "ec2-user"
+#       #password = "India@123456"
+#       private_key = file("Key1.pem")
+#       host        = aws_instance.web-1.public_ip
+#     }
+#   }
 
-}
+# }
 
-resource "null_resource" "nginxfilecopy" {
+# resource "null_resource" "nginxfilecopy" {
 
-  provisioner "remote-exec" {
-    inline = [
-      #"chmod +x /tmp/script.sh",
-      #"sudo ./tmp/script.sh",
-      "sudo rm -rf /usr/share/nginx/html/index.html",
-      "sudo cp /tmp/index.html /usr/share/nginx/html/",
-      "sudo cp /tmp/style.css /usr/share/nginx/html/",
-      "sudo cp /tmp/scorekeeper.js /usr/share/nginx/html/",
-      "sudo service nginx start"
+#   provisioner "remote-exec" {
+#     inline = [
+#       #"chmod +x /tmp/script.sh",
+#       #"sudo ./tmp/script.sh",
+#       "sudo rm -rf /usr/share/nginx/html/index.html",
+#       "sudo cp /tmp/index.html /usr/share/nginx/html/",
+#       "sudo cp /tmp/style.css /usr/share/nginx/html/",
+#       "sudo cp /tmp/scorekeeper.js /usr/share/nginx/html/",
+#       "sudo service nginx start"
 
-    ]
-    connection {
-      type = "ssh"
-      user = "ec2-user"
-      #password = "India@123456"
-      private_key = file("Key1.pem")
-      host        = aws_instance.web-1.public_ip
-    }
-  }
-  depends_on = [null_resource.filecopy]
-}
+#     ]
+#     connection {
+#       type = "ssh"
+#       user = "ec2-user"
+#       #password = "India@123456"
+#       private_key = file("Key1.pem")
+#       host        = aws_instance.web-1.public_ip
+#     }
+#   }
+#   depends_on = [null_resource.filecopy]
+# }
 
-resource "null_resource" "filecopy" {
+# resource "null_resource" "filecopy" {
 
-  provisioner "file" {
-    source      = "scorekeeper.js"
-    destination = "/tmp/scorekeeper.js"
+#   provisioner "file" {
+#     source      = "scorekeeper.js"
+#     destination = "/tmp/scorekeeper.js"
 
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file("Key1.pem")
-      host        = aws_instance.web-1.public_ip
-    }
-  }
-  provisioner "file" {
-    source      = "index.html"
-    destination = "/tmp/index.html"
+#     connection {
+#       type        = "ssh"
+#       user        = "ec2-user"
+#       private_key = file("Key1.pem")
+#       host        = aws_instance.web-1.public_ip
+#     }
+#   }
+#   provisioner "file" {
+#     source      = "index.html"
+#     destination = "/tmp/index.html"
 
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file("Key1.pem")
-      host        = aws_instance.web-1.public_ip
-    }
-  }
-  provisioner "file" {
-    source      = "style.css"
-    destination = "/tmp/style.css"
+#     connection {
+#       type        = "ssh"
+#       user        = "ec2-user"
+#       private_key = file("Key1.pem")
+#       host        = aws_instance.web-1.public_ip
+#     }
+#   }
+#   provisioner "file" {
+#     source      = "style.css"
+#     destination = "/tmp/style.css"
 
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file("Key1.pem")
-      host        = aws_instance.web-1.public_ip
-    }
-  }
-  depends_on = [null_resource.nginxinstall]
-}
+#     connection {
+#       type        = "ssh"
+#       user        = "ec2-user"
+#       private_key = file("Key1.pem")
+#       host        = aws_instance.web-1.public_ip
+#     }
+#   }
+#   depends_on = [null_resource.nginxinstall]
+# }
 
 # resource "null_resource" "instancedetails" {
 
